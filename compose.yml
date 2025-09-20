@@ -1,0 +1,14 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: deeppick_ai_frontend
+    ports:
+      - "8080:8080"
+    # volumes:
+#    env_file:
+#      - .env
+    # Specifika miljövariabler som ska skickas till containern
+#    environment:
+    command: ["python", "main.py"]
