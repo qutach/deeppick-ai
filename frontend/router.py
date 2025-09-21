@@ -62,9 +62,77 @@ def kupong_add_content():
     with ui.column().classes('p-10 w-full max-w-xl'):
         ui.label('Lägg till ny kupong').classes('text-3xl font-bold').style('color: #1F6C74')
         ui.label('Här kan du lägga till information om en ny kupong.').classes('mb-4')
-        speltyp = ui.select(['Stryktipset', 'Europatipset'], label='Speltyp').classes('w-full')
-        speldag = ui.input('Speldag (YYYY-MM-DD)').props('type=date').classes('w-full')
-
+        with ui.stepper().props('vertical').classes('w-full') as stepper:
+            with ui.step('Välj speltyp'):
+                speltyp = ui.select(['Stryktipset', 'Europatipset'], label='Speltyp').classes('w-full')
+                with ui.stepper_navigation():
+                    ui.button('Nästa', on_click=stepper.next)
+            with ui.step('Speldag'):
+                speldag = ui.input('Speldag (YYYY-MM-DD)').props('type=date').classes('w-full')
+                with ui.stepper_navigation():
+                    ui.button('Nästa', on_click=stepper.next)
+                    ui.button('Tillbaka', on_click=stepper.previous).props('flat')
+            with ui.step('Beskrivning'):
+                description = ui.textarea('Beskrivning').classes('w-full')
+                with ui.stepper_navigation():
+                    ui.button('Nästa', on_click=stepper.next)
+                    ui.button('Tillbaka', on_click=stepper.previous).props('flat')
+            # CSV upload step
+            uploaded_csv = {'rows': [], 'columns': []}
+            table_container = None
+            def handle_upload(event):
+                import io, csv
+                content = event.content.read().decode('utf-8')
+                reader = csv.DictReader(io.StringIO(content))
+                uploaded_csv['columns'] = reader.fieldnames
+                uploaded_csv['rows'] = [row for row in reader]
+                ui.notify('CSV uppladdad!', type='positive')
+                if table_container:
+                    table_container.clear()
+                    with table_container:
+                        if uploaded_csv['columns'] and uploaded_csv['rows']:
+                            columns = [{'name': 'Match', 'label': 'Match', 'field': 'Match'}] + [
+                                {'name': col, 'label': col, 'field': col} for col in uploaded_csv['columns']
+                            ]
+                            rows = [
+                                {'Match': i + 1, **row} for i, row in enumerate(uploaded_csv['rows'])
+                            ]
+                            ui.table(
+                                columns=columns,
+                                rows=rows,
+                                row_key=columns[0]['name'],
+                                pagination=13
+                            ).classes('w-full')
+                        else:
+                            ui.label('Ingen CSV uppladdad eller fel format.').classes('text-red')
+                stepper.next()
+            with ui.step('Ladda upp CSV'):
+                ui.upload(label='Ladda upp CSV', multiple=False, on_upload=handle_upload).classes('w-full mt-4')
+                with ui.stepper_navigation():
+                    ui.button('Nästa', on_click=stepper.next)
+                    ui.button('Tillbaka', on_click=stepper.previous).props('flat')
+            # CSV preview step
+            with ui.step('Förhandsgranska CSV'):
+                table_container = ui.column().classes('w-full')
+                with table_container:
+                    if uploaded_csv['columns'] and uploaded_csv['rows']:
+                        columns = [{'name': 'Match', 'label': 'Match', 'field': 'Match'}] + [
+                            {'name': col, 'label': col, 'field': col} for col in uploaded_csv['columns']
+                        ]
+                        rows = [
+                            {'Match': i + 1, **row} for i, row in enumerate(uploaded_csv['rows'])
+                        ]
+                        ui.table(
+                            columns=columns,
+                            rows=rows,
+                            row_key=columns[0]['name'],
+                            pagination=13
+                        ).classes('w-full')
+                    else:
+                        ui.label('Ingen CSV uppladdad eller fel format.').classes('text-red')
+                with ui.stepper_navigation():
+                    ui.button('Skapa Kupong', on_click=lambda: ui.notify('Kupong skapad!', type='positive'))
+                    ui.button('Tillbaka', on_click=stepper.previous).props('flat')
 
 def kupong_list_content():
     with ui.column().classes('p-10'):
