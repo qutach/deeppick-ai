@@ -6,9 +6,6 @@ services:
     container_name: deeppick_ai_frontend
     ports:
       - "8080:8080"
-    # volumes:
-#    env_file:
-#      - .env
-    # Specifika miljövariabler som ska skickas till containern
-#    environment:
+    env_file:
+      - .env
     command: ["python", "main.py"]
