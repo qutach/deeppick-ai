@@ -152,6 +152,12 @@ def skapa_tabell_kommande(cur):
             rad INTEGER NOT NULL,
             oddset_radsumma REAL,
             svenska_folket_radsumma REAL,
+            oddset_right_count INTEGER DEFAULT 0,
+            oddset_even_count INTEGER DEFAULT 0,
+            oddset_wrong_count INTEGER DEFAULT 0,
+            people_right_count INTEGER DEFAULT 0,
+            people_even_count INTEGER DEFAULT 0,
+            people_wrong_count INTEGER DEFAULT 0,
             UNIQUE (omgang_id, rad),
             FOREIGN KEY (omgang_id) REFERENCES omgang(omgang_id) ON DELETE RESTRICT,
             FOREIGN KEY (rad) REFERENCES kombinationer(kombinations_id) ON DELETE RESTRICT
@@ -161,6 +167,123 @@ def skapa_tabell_kommande(cur):
     cur.execute(
         """
         CREATE INDEX IF NOT EXISTS idx_kommande_omgang_id ON kommande(omgang_id)
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE kommande
+        ADD COLUMN IF NOT EXISTS oddset_right_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_even_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_wrong_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_right_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_even_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_wrong_count INTEGER DEFAULT 0
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE kommande
+        ADD COLUMN IF NOT EXISTS oddset_group1_right_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_group2_right_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_group3_right_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_group1_even_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_group2_even_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_group3_even_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_group1_wrong_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_group2_wrong_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_group3_wrong_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_group1_right_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_group2_right_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_group3_right_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_group1_even_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_group2_even_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_group3_even_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_group1_wrong_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_group2_wrong_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_group3_wrong_count INTEGER DEFAULT 0
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE kommande
+        ADD COLUMN IF NOT EXISTS rank1_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_people_wrong INTEGER DEFAULT 0
         """
     )
 
