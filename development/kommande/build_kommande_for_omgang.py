@@ -171,7 +171,7 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                     f"rank{rnk}_people_wrong",
                 ]
 
-            updates = []  # tuples matching (id, o_sum, s_sum, counts..., group_counts..., flags...)
+            updates = []  # tuples matching (id, o_sum, s_sum, counts..., group_counts..., points..., flags...)
             for cid, rad in rows:
                 s = sanitize_rad(rad)
                 odd_sum = 0.0
@@ -186,6 +186,9 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                 pg1_r = pg1_e = pg1_w = 0
                 pg2_r = pg2_e = pg2_w = 0
                 pg3_r = pg3_e = pg3_w = 0
+                # Points aggregations (per kategori)
+                op_right = op_even = op_wrong = 0
+                pp_right = pp_even = pp_wrong = 0
                 flags = {col: 0 for col in flag_cols}
                 # Summera över antalet matcher vi har data för
                 for pos in range(match_count):
@@ -217,6 +220,11 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                             if isinstance(o_rank, int) and 1 <= o_rank <= 13:
                                 key = f"rank{o_rank}_oddset_{o_cls}"
                                 flags[key] = 1
+                                # Points for oddset category based on rank (rank1=13..rank13=1)
+                                pts = 14 - o_rank
+                                if o_cls == 'right': op_right += pts
+                                elif o_cls == 'even': op_even += pts
+                                else: op_wrong += pts
                                 # Group bucket for oddset rank
                                 if 1 <= o_rank <= 3:
                                     if o_cls == 'right': og1_r += 1
@@ -246,6 +254,11 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                             if isinstance(p_rank, int) and 1 <= p_rank <= 13:
                                 key = f"rank{p_rank}_people_{p_cls}"
                                 flags[key] = 1
+                                # Points for people category based on rank
+                                pts = 14 - p_rank
+                                if p_cls == 'right': pp_right += pts
+                                elif p_cls == 'even': pp_even += pts
+                                else: pp_wrong += pts
                                 # Group bucket for people rank
                                 if 1 <= p_rank <= 3:
                                     if p_cls == 'right': pg1_r += 1
@@ -262,6 +275,7 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                 updates.append((cid, odd_sum, sv_sum, oc_right, oc_even, oc_wrong, pc_right, pc_even, pc_wrong,
                                 og1_r, og1_e, og1_w, og2_r, og2_e, og2_w, og3_r, og3_e, og3_w,
                                 pg1_r, pg1_e, pg1_w, pg2_r, pg2_e, pg2_w, pg3_r, pg3_e, pg3_w,
+                                op_right, op_even, op_wrong, pp_right, pp_even, pp_wrong,
                                 *[flags[c] for c in flag_cols]))
                 last_id = cid
 
@@ -270,7 +284,8 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                 "id", "o", "s",
                 "oc_r", "oc_e", "oc_w", "pc_r", "pc_e", "pc_w",
                 "og1_r", "og1_e", "og1_w", "og2_r", "og2_e", "og2_w", "og3_r", "og3_e", "og3_w",
-                "pg1_r", "pg1_e", "pg1_w", "pg2_r", "pg2_e", "pg2_w", "pg3_r", "pg3_e", "pg3_w"
+                "pg1_r", "pg1_e", "pg1_w", "pg2_r", "pg2_e", "pg2_w", "pg3_r", "pg3_e", "pg3_w",
+                "op_r", "op_e", "op_w", "pp_r", "pp_e", "pp_w"
             ] + flag_cols
             values_cols_sql = ", ".join(values_cols)
             set_cols_sql = ", ".join([
@@ -300,6 +315,12 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                 "people_group3_right_count = v.pg3_r",
                 "people_group3_even_count = v.pg3_e",
                 "people_group3_wrong_count = v.pg3_w",
+                "oddset_right_points = v.op_r",
+                "oddset_even_points = v.op_e",
+                "oddset_wrong_points = v.op_w",
+                "people_right_points = v.pp_r",
+                "people_even_points = v.pp_e",
+                "people_wrong_points = v.pp_w",
             ] + [f"{col} = v.{col}" for col in flag_cols])
             update_sql = f"""
                 UPDATE kommande AS c
@@ -346,6 +367,12 @@ def update_kommande_sums_fast(conn, omgang_id: int):
                 people_group3_right_count = sums.pg3_r,
                 people_group3_even_count = sums.pg3_e,
                 people_group3_wrong_count = sums.pg3_w,
+                oddset_right_points = sums.op_r,
+                oddset_even_points = sums.op_e,
+                oddset_wrong_points = sums.op_w,
+                people_right_points = sums.pp_r,
+                people_even_points = sums.pp_e,
+                people_wrong_points = sums.pp_w,
                 rank1_oddset_right = sums.rank1_oddset_right,
                 rank1_oddset_even = sums.rank1_oddset_even,
                 rank1_oddset_wrong = sums.rank1_oddset_wrong,
@@ -470,6 +497,12 @@ def update_kommande_sums_fast(conn, omgang_id: int):
                        SUM(CASE WHEN mm.people_rank BETWEEN 9 AND 13 AND cls_p = 'R' THEN 1 ELSE 0 END) AS pg3_r,
                        SUM(CASE WHEN mm.people_rank BETWEEN 9 AND 13 AND cls_p = 'E' THEN 1 ELSE 0 END) AS pg3_e,
                        SUM(CASE WHEN mm.people_rank BETWEEN 9 AND 13 AND cls_p = 'W' THEN 1 ELSE 0 END) AS pg3_w,
+                       SUM(CASE WHEN cls_o = 'R' AND mm.oddset_rank IS NOT NULL THEN (14 - mm.oddset_rank) ELSE 0 END) AS op_r,
+                       SUM(CASE WHEN cls_o = 'E' AND mm.oddset_rank IS NOT NULL THEN (14 - mm.oddset_rank) ELSE 0 END) AS op_e,
+                       SUM(CASE WHEN cls_o = 'W' AND mm.oddset_rank IS NOT NULL THEN (14 - mm.oddset_rank) ELSE 0 END) AS op_w,
+                       SUM(CASE WHEN cls_p = 'R' AND mm.people_rank IS NOT NULL THEN (14 - mm.people_rank) ELSE 0 END) AS pp_r,
+                       SUM(CASE WHEN cls_p = 'E' AND mm.people_rank IS NOT NULL THEN (14 - mm.people_rank) ELSE 0 END) AS pp_e,
+                       SUM(CASE WHEN cls_p = 'W' AND mm.people_rank IS NOT NULL THEN (14 - mm.people_rank) ELSE 0 END) AS pp_w,
                        SUM(CASE WHEN mm.oddset_rank = 1 AND cls_o = 'R' THEN 1 ELSE 0 END) AS rank1_oddset_right,
                        SUM(CASE WHEN mm.oddset_rank = 1 AND cls_o = 'E' THEN 1 ELSE 0 END) AS rank1_oddset_even,
                        SUM(CASE WHEN mm.oddset_rank = 1 AND cls_o = 'W' THEN 1 ELSE 0 END) AS rank1_oddset_wrong,

@@ -158,6 +158,12 @@ def skapa_tabell_kommande(cur):
             people_right_count INTEGER DEFAULT 0,
             people_even_count INTEGER DEFAULT 0,
             people_wrong_count INTEGER DEFAULT 0,
+            oddset_right_points INTEGER DEFAULT 0,
+            oddset_even_points INTEGER DEFAULT 0,
+            oddset_wrong_points INTEGER DEFAULT 0,
+            people_right_points INTEGER DEFAULT 0,
+            people_even_points INTEGER DEFAULT 0,
+            people_wrong_points INTEGER DEFAULT 0,
             UNIQUE (omgang_id, rad),
             FOREIGN KEY (omgang_id) REFERENCES omgang(omgang_id) ON DELETE RESTRICT,
             FOREIGN KEY (rad) REFERENCES kombinationer(kombinations_id) ON DELETE RESTRICT
@@ -178,6 +184,17 @@ def skapa_tabell_kommande(cur):
         ADD COLUMN IF NOT EXISTS people_right_count INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS people_even_count INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS people_wrong_count INTEGER DEFAULT 0
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE kommande
+        ADD COLUMN IF NOT EXISTS oddset_right_points INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_even_points INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS oddset_wrong_points INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_right_points INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_even_points INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS people_wrong_points INTEGER DEFAULT 0
         """
     )
     cur.execute(
