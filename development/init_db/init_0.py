@@ -305,6 +305,162 @@ def skapa_tabell_kommande(cur):
     )
 
 
+def skapa_tabell_historik(cur):
+    """Skapar tabellen `historik` med samma struktur som `kommande` men en rad per omgång.
+
+    Lagrar utfall (rad via o.correct) och alla härledda summeringar/poäng/flaggar.
+    """
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS historik (
+            id SERIAL PRIMARY KEY,
+            omgang_id INTEGER NOT NULL,
+            rad INTEGER NOT NULL,
+            correct INTEGER,
+            oddset_radsumma REAL,
+            svenska_folket_radsumma REAL,
+            oddset_right_count INTEGER DEFAULT 0,
+            oddset_even_count INTEGER DEFAULT 0,
+            oddset_wrong_count INTEGER DEFAULT 0,
+            people_right_count INTEGER DEFAULT 0,
+            people_even_count INTEGER DEFAULT 0,
+            people_wrong_count INTEGER DEFAULT 0,
+            oddset_right_points INTEGER DEFAULT 0,
+            oddset_even_points INTEGER DEFAULT 0,
+            oddset_wrong_points INTEGER DEFAULT 0,
+            people_right_points INTEGER DEFAULT 0,
+            people_even_points INTEGER DEFAULT 0,
+            people_wrong_points INTEGER DEFAULT 0,
+            oddset_group1_right_count INTEGER DEFAULT 0,
+            oddset_group2_right_count INTEGER DEFAULT 0,
+            oddset_group3_right_count INTEGER DEFAULT 0,
+            oddset_group1_even_count INTEGER DEFAULT 0,
+            oddset_group2_even_count INTEGER DEFAULT 0,
+            oddset_group3_even_count INTEGER DEFAULT 0,
+            oddset_group1_wrong_count INTEGER DEFAULT 0,
+            oddset_group2_wrong_count INTEGER DEFAULT 0,
+            oddset_group3_wrong_count INTEGER DEFAULT 0,
+            people_group1_right_count INTEGER DEFAULT 0,
+            people_group2_right_count INTEGER DEFAULT 0,
+            people_group3_right_count INTEGER DEFAULT 0,
+            people_group1_even_count INTEGER DEFAULT 0,
+            people_group2_even_count INTEGER DEFAULT 0,
+            people_group3_even_count INTEGER DEFAULT 0,
+            people_group1_wrong_count INTEGER DEFAULT 0,
+            people_group2_wrong_count INTEGER DEFAULT 0,
+            people_group3_wrong_count INTEGER DEFAULT 0,
+            FOREIGN KEY (omgang_id) REFERENCES omgang(omgang_id) ON DELETE RESTRICT,
+            FOREIGN KEY (rad) REFERENCES kombinationer(kombinations_id) ON DELETE RESTRICT
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_historik_omgang_id ON historik(omgang_id)
+        """
+    )
+    # Säkerställ att kolumnen 'correct' finns
+    cur.execute(
+        """
+        ALTER TABLE historik
+        ADD COLUMN IF NOT EXISTS correct INTEGER
+        """
+    )
+    # Lägg till rank- och övriga kolumner om tabellen redan finns
+    cur.execute(
+        """
+        ALTER TABLE historik
+        ADD COLUMN IF NOT EXISTS rank1_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank1_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank2_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank3_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank4_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank5_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank6_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank7_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank8_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank9_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank10_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank11_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank12_people_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_oddset_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_oddset_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_oddset_wrong INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_people_right INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_people_even INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rank13_people_wrong INTEGER DEFAULT 0
+        """
+    )
+    # Uppgradera unik constraint: ta bort ev. gammal UNIQUE (omgang_id) och säkerställ unik (omgang_id, rad)
+    try:
+        cur.execute("ALTER TABLE historik DROP CONSTRAINT IF EXISTS historik_omgang_id_key")
+    except Exception:
+        pass
+    cur.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_historik_omgang_rad_unique ON historik(omgang_id, rad)
+        """
+    )
+
 def initiera_databas():
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -312,6 +468,7 @@ def initiera_databas():
             skapa_tabell_omgang(cur)
             skapa_tabell_omgangsmatch(cur)
             skapa_tabell_kommande(cur)
+            skapa_tabell_historik(cur)
         conn.commit()
     print("Tabellen 'kombinationer' är skapad eller fanns redan.")
 
