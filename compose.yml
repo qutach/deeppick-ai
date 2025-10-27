@@ -32,7 +32,18 @@ services:
       - "5000:5000"
     depends_on:
       - db
-
+  trainer:
+    build:
+      context: ./trainer
+      dockerfile: Dockerfile
+    container_name: deeppick_ai_trainer
+    env_file:
+      - .env
+    depends_on:
+      - db
+    volumes:
+      - ./models:/models
+    command: ["tail", "-f", "/dev/null"]
   dev:
     build:
       context: ./development
