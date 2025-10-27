@@ -44,6 +44,18 @@ services:
     volumes:
       - ./models:/models
     command: ["tail", "-f", "/dev/null"]
+  predicter:
+    build:
+      context: ./predicter
+      dockerfile: Dockerfile
+    container_name: deeppick_ai_predicter
+    env_file:
+      - .env
+    depends_on:
+      - db
+    volumes:
+      - ./models:/models
+    command: ["tail", "-f", "/dev/null"]
   dev:
     build:
       context: ./development

@@ -1,0 +1,4 @@
+xgboost==2.0.3
+numpy
+pandas
+psycopg2-binary
