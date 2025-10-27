@@ -50,12 +50,19 @@ def build_all_historik(min_matches: int = 13):
         # Hitta kompletta omgångar (radlängd == antal matcher, och >= min_matches)
         cur.execute(
             """
-            SELECT o.omgang_id, regexp_replace(upper(k.rad), '[^12X]', '', 'g') AS srad,
-                   COUNT(m.matchnummer) AS match_count
+            SELECT o.omgang_id,
+                   regexp_replace(upper(k.rad), '[^12X]', '', 'g') AS srad,
+                   COUNT(m.matchnummer) AS match_count,
+                   o.oddset_radsumma_max,
+                   o.oddset_radsumma_min,
+                   o.svenska_folket_radsumma_max,
+                   o.svenska_folket_radsumma_min
             FROM omgang o
             JOIN kombinationer k ON k.kombinations_id = o.correct
             JOIN omgangsmatch m ON m.omgang_id = o.omgang_id
-            GROUP BY o.omgang_id, k.rad
+            GROUP BY o.omgang_id, k.rad,
+                     o.oddset_radsumma_max, o.oddset_radsumma_min,
+                     o.svenska_folket_radsumma_max, o.svenska_folket_radsumma_min
             HAVING COUNT(m.matchnummer) = length(regexp_replace(k.rad, '[^12Xx]', '', 'g'))
                AND COUNT(m.matchnummer) >= %s
             ORDER BY o.omgang_id
@@ -65,7 +72,15 @@ def build_all_historik(min_matches: int = 13):
         omg = cur.fetchall()
         print(f"Hittade {len(omg)} kompletta omgångar (>= {min_matches} matcher)")
 
-        for omgang_id, base_rad, match_count in omg:
+        for (
+            omgang_id,
+            base_rad,
+            match_count,
+            o_radsum_max,
+            o_radsum_min,
+            p_radsum_max,
+            p_radsum_min,
+        ) in omg:
             max_dist = max(0, match_count - min_matches)
             candidates = generate_candidates(base_rad, max_dist)
             if not candidates:
@@ -119,6 +134,10 @@ def build_all_historik(min_matches: int = 13):
                 "correct",
                 "oddset_radsumma",
                 "svenska_folket_radsumma",
+                "oddset_radsumma_max",
+                "oddset_radsumma_min",
+                "svenska_folket_radsumma_max",
+                "svenska_folket_radsumma_min",
                 "oddset_right_count",
                 "oddset_even_count",
                 "oddset_wrong_count",
@@ -258,6 +277,10 @@ def build_all_historik(min_matches: int = 13):
                     correct_val,
                     o_sum,
                     p_sum,
+                    o_radsum_max,
+                    o_radsum_min,
+                    p_radsum_max,
+                    p_radsum_min,
                     oc_r,
                     oc_e,
                     oc_w,

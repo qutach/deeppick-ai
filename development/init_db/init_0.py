@@ -152,6 +152,7 @@ def skapa_tabell_kommande(cur):
             rad INTEGER NOT NULL,
             oddset_radsumma REAL,
             svenska_folket_radsumma REAL,
+            rank_predict_1 REAL,
             oddset_right_count INTEGER DEFAULT 0,
             oddset_even_count INTEGER DEFAULT 0,
             oddset_wrong_count INTEGER DEFAULT 0,
@@ -195,6 +196,12 @@ def skapa_tabell_kommande(cur):
         ADD COLUMN IF NOT EXISTS people_right_points INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS people_even_points INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS people_wrong_points INTEGER DEFAULT 0
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE kommande
+        ADD COLUMN IF NOT EXISTS rank_predict_1 REAL
         """
     )
     cur.execute(
@@ -319,6 +326,10 @@ def skapa_tabell_historik(cur):
             correct INTEGER,
             oddset_radsumma REAL,
             svenska_folket_radsumma REAL,
+            oddset_radsumma_max REAL,
+            oddset_radsumma_min REAL,
+            svenska_folket_radsumma_max REAL,
+            svenska_folket_radsumma_min REAL,
             oddset_right_count INTEGER DEFAULT 0,
             oddset_even_count INTEGER DEFAULT 0,
             oddset_wrong_count INTEGER DEFAULT 0,
@@ -352,6 +363,16 @@ def skapa_tabell_historik(cur):
             FOREIGN KEY (omgang_id) REFERENCES omgang(omgang_id) ON DELETE RESTRICT,
             FOREIGN KEY (rad) REFERENCES kombinationer(kombinations_id) ON DELETE RESTRICT
         )
+        """
+    )
+    # Säkerställ att radsumma min/max-kolumner finns även om tabellen redan fanns
+    cur.execute(
+        """
+        ALTER TABLE historik
+        ADD COLUMN IF NOT EXISTS oddset_radsumma_max REAL,
+        ADD COLUMN IF NOT EXISTS oddset_radsumma_min REAL,
+        ADD COLUMN IF NOT EXISTS svenska_folket_radsumma_max REAL,
+        ADD COLUMN IF NOT EXISTS svenska_folket_radsumma_min REAL
         """
     )
     cur.execute(
