@@ -125,6 +125,14 @@ def ensure_kommande_rows_fast(conn, omgang_id: int):
 
 def update_kommande_sums(conn, omgang_id: int, batch_size: int):
     with conn.cursor() as cur:
+        # Hämta radsumma max/min för denna omgång (konstanta per omgang_id)
+        cur.execute(
+            "SELECT oddset_radsumma_max, oddset_radsumma_min FROM omgang WHERE omgang_id = %s",
+            (omgang_id,),
+        )
+        row = cur.fetchone()
+        o_radsum_max = float(row[0]) if row and row[0] is not None else None
+        o_radsum_min = float(row[1]) if row and row[1] is not None else None
         (
             oddset_map,
             svenska_map,
@@ -171,7 +179,7 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                     f"rank{rnk}_people_wrong",
                 ]
 
-            updates = []  # tuples matching (id, o_sum, s_sum, counts..., group_counts..., points..., flags...)
+            updates = []  # tuples matching (id, o_sum, s_sum, o_max, o_min, counts..., group_counts..., points..., flags...)
             for cid, rad in rows:
                 s = sanitize_rad(rad)
                 odd_sum = 0.0
@@ -272,7 +280,7 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                                     if p_cls == 'right': pg3_r += 1
                                     elif p_cls == 'even': pg3_e += 1
                                     else: pg3_w += 1
-                updates.append((cid, odd_sum, sv_sum, oc_right, oc_even, oc_wrong, pc_right, pc_even, pc_wrong,
+                updates.append((cid, odd_sum, sv_sum, o_radsum_max, o_radsum_min, oc_right, oc_even, oc_wrong, pc_right, pc_even, pc_wrong,
                                 og1_r, og1_e, og1_w, og2_r, og2_e, og2_w, og3_r, og3_e, og3_w,
                                 pg1_r, pg1_e, pg1_w, pg2_r, pg2_e, pg2_w, pg3_r, pg3_e, pg3_w,
                                 op_right, op_even, op_wrong, pp_right, pp_even, pp_wrong,
@@ -281,7 +289,7 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
 
             # Bulk-uppdatera via VALUES‑tabell med alla rank‑flaggor
             values_cols = [
-                "id", "o", "s",
+                "id", "o", "s", "o_max", "o_min",
                 "oc_r", "oc_e", "oc_w", "pc_r", "pc_e", "pc_w",
                 "og1_r", "og1_e", "og1_w", "og2_r", "og2_e", "og2_w", "og3_r", "og3_e", "og3_w",
                 "pg1_r", "pg1_e", "pg1_w", "pg2_r", "pg2_e", "pg2_w", "pg3_r", "pg3_e", "pg3_w",
@@ -291,6 +299,8 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
             set_cols_sql = ", ".join([
                 "oddset_radsumma = v.o",
                 "svenska_folket_radsumma = v.s",
+                "oddset_radsumma_max = v.o_max",
+                "oddset_radsumma_min = v.o_min",
                 "oddset_right_count = v.oc_r",
                 "oddset_even_count = v.oc_e",
                 "oddset_wrong_count = v.oc_w",
@@ -343,6 +353,8 @@ def update_kommande_sums_fast(conn, omgang_id: int):
             UPDATE kommande AS c
             SET oddset_radsumma = sums.odd_sum,
                 svenska_folket_radsumma = sums.sv_sum,
+                oddset_radsumma_max = o.oddset_radsumma_max,
+                oddset_radsumma_min = o.oddset_radsumma_min,
                 oddset_right_count = sums.oc_right,
                 oddset_even_count = sums.oc_even,
                 oddset_wrong_count = sums.oc_wrong,
@@ -621,11 +633,11 @@ def update_kommande_sums_fast(conn, omgang_id: int):
                 ) cls
                 WHERE c2.omgang_id = %s
                 GROUP BY c2.id
-            ) AS sums
-            WHERE c.id = sums.id AND c.omgang_id = %s
+            ) AS sums, omgang o
+            WHERE c.id = sums.id AND c.omgang_id = %s AND o.omgang_id = %s
             """
         )
-        cur.execute(sql, (omgang_id, omgang_id, omgang_id))
+        cur.execute(sql, (omgang_id, omgang_id, omgang_id, omgang_id))
         conn.commit()
         print("Kommande update: klart (set-based)")
 

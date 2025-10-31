@@ -152,6 +152,8 @@ def skapa_tabell_kommande(cur):
             rad INTEGER NOT NULL,
             oddset_radsumma REAL,
             svenska_folket_radsumma REAL,
+            oddset_radsumma_max REAL,
+            oddset_radsumma_min REAL,
             rank_predict_1 REAL,
             oddset_right_count INTEGER DEFAULT 0,
             oddset_even_count INTEGER DEFAULT 0,
@@ -202,6 +204,13 @@ def skapa_tabell_kommande(cur):
         """
         ALTER TABLE kommande
         ADD COLUMN IF NOT EXISTS rank_predict_1 REAL
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE kommande
+        ADD COLUMN IF NOT EXISTS oddset_radsumma_max REAL,
+        ADD COLUMN IF NOT EXISTS oddset_radsumma_min REAL
         """
     )
     cur.execute(
