@@ -7,7 +7,7 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 import psycopg2
-from xgboost import XGBRanker
+from lightgbm import LGBMRanker
 from scipy.sparse import csr_matrix, hstack
 
 
@@ -68,11 +68,9 @@ def load_training_data(omgang_id_min: int | None = None, omgang_id_max: int | No
     sql = base_sql + " ORDER BY omgang_id"
     with get_conn() as conn:
         df = pd.read_sql_query(sql, conn, params=tuple(params) if params else None)
-    # Ensure ints/floats and fill NaNs with 0 for flags
     df[feat_cols] = df[feat_cols].fillna(0).astype(np.float32)
     df["correct"] = df["correct"].astype(np.int32)
 
-    # Build groups per omgang_id and filter groups with >1 rows (ranker needs comparisons)
     counts = df.groupby("omgang_id").size()
     valid_ids = counts[counts > 1].index
     df = df[df["omgang_id"].isin(valid_ids)].copy()
@@ -82,7 +80,6 @@ def load_training_data(omgang_id_min: int | None = None, omgang_id_max: int | No
 
 def train_and_save(df: pd.DataFrame, groups: List[int]) -> None:
     feat_cols = build_feature_cols()
-    # Dela upp i täta features och glesa flaggor (rank1..13_oddset_{right,even,wrong})
     rank_flag_cols = [
         f"rank{r}_oddset_{k}"
         for r in range(1, 14)
@@ -96,27 +93,27 @@ def train_and_save(df: pd.DataFrame, groups: List[int]) -> None:
     X_sparse = hstack([csr_matrix(X_dense), csr_matrix(X_flags)], format="csr")
     y = df["correct"].values
 
-    model = XGBRanker(
-        objective="rank:ndcg",
+    model = LGBMRanker(
+        objective="lambdarank",
+        metric="ndcg",
         n_estimators=300,
         learning_rate=0.05,
         max_depth=6,
-        # min_child_weight=10,
+        num_leaves=63,
         subsample=0.8,
-        colsample_bytree=0.8,
+        subsample_freq=1,
+        feature_fraction=0.8,
         random_state=42,
-        tree_method="hist",
-        n_jobs=0,
+        n_jobs=-1,
     )
 
-    # Fit with group sizes
     model.fit(X_sparse, y, group=groups)
 
     os.makedirs("/models", exist_ok=True)
-    model_path = "/models/xgb_ranker.json"
-    model.save_model(model_path)
+    model_path = "/models/lgbm_ranker.txt"
+    # Save LightGBM native model
+    model.booster_.save_model(model_path)
 
-    # Save feature names for reference
     with open("/models/feature_columns.txt", "w", encoding="utf-8") as f:
         f.write("\n".join(feat_cols))
 
@@ -124,7 +121,7 @@ def train_and_save(df: pd.DataFrame, groups: List[int]) -> None:
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="Train XGBRanker on historik with optional omgang_id filtering")
+    ap = argparse.ArgumentParser(description="Train LGBMRanker on historik with optional omgang_id filtering")
     ap.add_argument("--omgang_id_min", type=int, default=None, help="Minimum omgang_id to include")
     ap.add_argument("--omgang_id_max", type=int, default=None, help="Maximum omgang_id to include")
     args = ap.parse_args()

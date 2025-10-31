@@ -4,12 +4,14 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY ranker.py /app/ranker.py
+COPY lightgbm_ranker.py /app/lightgbm_ranker.py
 
 # models volume is expected at /models via docker-compose
 ENV PYTHONUNBUFFERED=1
