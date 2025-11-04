@@ -65,12 +65,15 @@ def build_all_historik(min_matches: int = 13):
                      o.svenska_folket_radsumma_max, o.svenska_folket_radsumma_min
             HAVING COUNT(m.matchnummer) = length(regexp_replace(k.rad, '[^12Xx]', '', 'g'))
                AND COUNT(m.matchnummer) >= %s
-            ORDER BY o.omgang_id
+            ORDER BY o.omgang_id DESC
             """,
             (min_matches,),
         )
         omg = cur.fetchall()
         print(f"Hittade {len(omg)} kompletta omgångar (>= {min_matches} matcher)")
+
+        # Mängd av rad (kombinations_id) som redan setts i äldre omgångar med correct >= 12
+        seen_rad_ge12: set[int] = set()
 
         for (
             omgang_id,
@@ -138,6 +141,7 @@ def build_all_historik(min_matches: int = 13):
                 "oddset_radsumma_min",
                 "svenska_folket_radsumma_max",
                 "svenska_folket_radsumma_min",
+                "unik_flagga",
                 "oddset_right_count",
                 "oddset_even_count",
                 "oddset_wrong_count",
@@ -182,6 +186,8 @@ def build_all_historik(min_matches: int = 13):
             cols = base_cols + rank_cols
 
             values = []
+            # Samla rader som i denna omgång har correct >= 12 för att addera till seen efter commit
+            ge12_in_omgang: set[int] = set()
             for s in candidates:
                 srad = sanitize_rad(s)
                 if len(srad) != len(mm):
@@ -271,6 +277,9 @@ def build_all_historik(min_matches: int = 13):
                             else:
                                 pg[3][pcls] += 1
 
+                # Riktad unikhet: TRUE om rad inte finns i seen (dvs inte setts i äldre omgångar med >=12)
+                unik_flagga_val = (kid not in seen_rad_ge12)
+
                 row = [
                     omgang_id,
                     kid,
@@ -281,6 +290,7 @@ def build_all_historik(min_matches: int = 13):
                     o_radsum_min,
                     p_radsum_max,
                     p_radsum_min,
+                    unik_flagga_val,
                     oc_r,
                     oc_e,
                     oc_w,
@@ -303,6 +313,8 @@ def build_all_historik(min_matches: int = 13):
                 for name in rank_cols:
                     row.append(flags[name])
                 values.append(tuple(row))
+                if correct_val >= 12:
+                    ge12_in_omgang.add(kid)
 
             if values:
                 insert_sql = f"INSERT INTO historik ({', '.join(cols)}) VALUES %s ON CONFLICT (omgang_id, rad) DO UPDATE SET " + \
@@ -310,6 +322,12 @@ def build_all_historik(min_matches: int = 13):
                 execute_values(cur, insert_sql, values)
                 conn.commit()
                 print(f"Historik: omg {omgang_id} — {len(values)} kandidater")
+                # Uppdatera seen-listan efter att omgången skrivits
+                before = len(seen_rad_ge12)
+                newly_added = len([r for r in ge12_in_omgang if r not in seen_rad_ge12])
+                seen_rad_ge12.update(ge12_in_omgang)
+                after = len(seen_rad_ge12)
+                print(f"Historik: omg {omgang_id} — +{newly_added} nya (>=12) in i seen; seen-storlek inför nästa omgång: {after}")
 
 
 if __name__ == "__main__":

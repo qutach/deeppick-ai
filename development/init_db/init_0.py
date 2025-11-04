@@ -216,6 +216,18 @@ def skapa_tabell_kommande(cur):
     cur.execute(
         """
         ALTER TABLE kommande
+        ADD COLUMN IF NOT EXISTS unik_flagga BOOLEAN
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE kommande
+        ADD COLUMN IF NOT EXISTS correct INTEGER
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE kommande
         ADD COLUMN IF NOT EXISTS oddset_group1_right_count INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS oddset_group2_right_count INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS oddset_group3_right_count INTEGER DEFAULT 0,
@@ -386,6 +398,12 @@ def skapa_tabell_historik(cur):
     )
     cur.execute(
         """
+        ALTER TABLE historik
+        ADD COLUMN IF NOT EXISTS unik_flagga BOOLEAN
+        """
+    )
+    cur.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_historik_omgang_id ON historik(omgang_id)
         """
     )
@@ -491,6 +509,21 @@ def skapa_tabell_historik(cur):
         """
     )
 
+def skapa_tabell_kuponger(cur):
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS kuponger (
+            id SERIAL PRIMARY KEY,
+            omgang_id INTEGER NOT NULL,
+            rad INTEGER NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE (omgang_id, rad),
+            FOREIGN KEY (omgang_id) REFERENCES omgang(omgang_id) ON DELETE CASCADE,
+            FOREIGN KEY (rad) REFERENCES kombinationer(kombinations_id) ON DELETE RESTRICT
+        )
+        """
+    )
+
 def initiera_databas():
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -499,6 +532,7 @@ def initiera_databas():
             skapa_tabell_omgangsmatch(cur)
             skapa_tabell_kommande(cur)
             skapa_tabell_historik(cur)
+            skapa_tabell_kuponger(cur)
         conn.commit()
     print("Tabellen 'kombinationer' är skapad eller fanns redan.")
 

@@ -123,6 +123,71 @@ def ensure_kommande_rows_fast(conn, omgang_id: int):
         print("Kommande insert: klart (set-based)")
 
 
+def update_kommande_unik_flagga(conn, omgang_id: int, add_unik_flagga: bool = False):
+    """Sätter kommande.unik_flagga för given omgång via set-baserad uppdatering.
+
+    Default (add_unik_flagga=False):
+      - Behåll riktad regel som tidigare: TRUE om ingen "äldre" historik‑rad
+        (processordning/descending → äldre definieras här som omgang_id > aktuell)
+        med samma rad och correct >= 12. Annars FALSE.
+
+    Med add_unik_flagga=True:
+      - Markera FALSE om raden förekommer i någon historik med correct >= 12
+        (global kontroll, oberoende av omgang_id), annars TRUE.
+    """
+    with conn.cursor() as cur:
+        if add_unik_flagga:
+            # Global kontroll: sätt FALSE där rad finns i historik (oavsett id) med correct >= 12
+            cur.execute(
+                """
+                WITH older AS (
+                    SELECT DISTINCT rad
+                    FROM historik
+                    WHERE correct >= 12
+                )
+                UPDATE kommande c
+                SET unik_flagga = FALSE
+                FROM older
+                WHERE c.omgang_id = %s
+                  AND c.rad = older.rad
+                """,
+                (omgang_id,),
+            )
+        else:
+            # Tidigare riktad regel baserad på id‑ordning (DESC): "äldre" = större id
+            cur.execute(
+                """
+                WITH older AS (
+                    SELECT DISTINCT rad
+                    FROM historik
+                    WHERE correct >= 12
+                      AND omgang_id > %s
+                )
+                UPDATE kommande c
+                SET unik_flagga = FALSE
+                FROM older
+                WHERE c.omgang_id = %s
+                  AND c.rad = older.rad
+                """,
+                (omgang_id, omgang_id),
+            )
+        false_rows = cur.rowcount
+
+        # Sätt TRUE endast för rader som fortfarande är NULL (bevara FALSE)
+        cur.execute(
+            """
+            UPDATE kommande
+            SET unik_flagga = TRUE
+            WHERE omgang_id = %s AND unik_flagga IS NULL
+            """,
+            (omgang_id,),
+        )
+        true_rows = cur.rowcount
+
+        conn.commit()
+        print(f"Kommande: unik_flagga uppdaterad för omgång {omgang_id} (TRUE={true_rows}, FALSE={false_rows})")
+
+
 def update_kommande_sums(conn, omgang_id: int, batch_size: int):
     with conn.cursor() as cur:
         # Hämta radsumma max/min för denna omgång (konstanta per omgang_id)
@@ -644,10 +709,11 @@ def update_kommande_sums_fast(conn, omgang_id: int):
 
 def main():
     ap = argparse.ArgumentParser(description="Skapa och uppdatera kommande-rader för en given omgång")
-    ap.add_argument("--omgang-id", type=int, required=True, help="Omgang ID")
+    ap.add_argument("--omgang-id", "--omgang_id", dest="omgang_id", type=int, required=True, help="Omgang ID")
     ap.add_argument("--batch-size", type=int, default=100_000, help="Batch-storlek (default 100000)")
     ap.add_argument("--insert-only", action="store_true", help="Endast skapa rad-par, räkna inte summor")
     ap.add_argument("--fast", action="store_true", help="Använd set-baserad (snabb) insättning och uppdatering")
+    ap.add_argument("--add-unik-flagga", action="store_true", help="Global unikhet: sätt FALSE om rad förekommer i någon historik (>=12)")
     args = ap.parse_args()
 
     with get_conn() as conn:
@@ -660,6 +726,8 @@ def main():
                 update_kommande_sums_fast(conn, args.omgang_id)
             else:
                 update_kommande_sums(conn, args.omgang_id, args.batch_size)
+        # Uppdatera unik_flagga oavsett fast eller ej
+        update_kommande_unik_flagga(conn, args.omgang_id, add_unik_flagga=args.add_unik_flagga)
 
 
 if __name__ == "__main__":

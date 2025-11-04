@@ -26,6 +26,7 @@ def build_feature_cols() -> List[str]:
         "oddset_radsumma",
         "oddset_radsumma_max",
         "oddset_radsumma_min",
+        "unik_flagga",
         "oddset_right_count",
         "oddset_even_count",
         "oddset_wrong_count",

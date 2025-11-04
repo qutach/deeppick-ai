@@ -63,6 +63,8 @@ services:
     container_name: deeppick_ai_dev
     env_file:
       - .env
+    volumes:
+      - ./svenskaspel:/app/svenskaspel
 
   pgadmin:
     image: dpage/pgadmin4
