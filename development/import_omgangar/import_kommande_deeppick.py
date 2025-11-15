@@ -136,9 +136,10 @@ def import_upcoming(csv_path, gametype, year, week, replace=False):
                 oddset_rank = int(to_float(r.get('oddset_rank'))) if r.get('oddset_rank') not in (None, '') else None
                 people_rank = int(to_float(r.get('people_rank'))) if r.get('people_rank') not in (None, '') else None
 
-                tio_tidningar1 = safe_int_in_range(r.get('tiotidningar_1'))
-                tio_tidningarx = safe_int_in_range(r.get('tiotidningar_x'))
-                tio_tidningar2 = safe_int_in_range(r.get('tiotidningar_2'))
+                # Tio Tidningar: primary keys without underscore, fallback to old underscore names
+                tio_tidningar1 = safe_int_in_range(r.get('tiotidningar1') or r.get('tiotidningar_1'))
+                tio_tidningarx = safe_int_in_range(r.get('tiotidningarx') or r.get('tiotidningar_x'))
+                tio_tidningar2 = safe_int_in_range(r.get('tiotidningar2') or r.get('tiotidningar_2'))
 
                 sum_tio = sum([v for v in (tio_tidningar1, tio_tidningarx, tio_tidningar2) if v is not None])
                 tio_tidningar_present = True if sum_tio > 0 else False

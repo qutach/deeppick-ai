@@ -106,7 +106,8 @@ def build_all_historik(min_matches: int = 13):
                        svenska_folket_odds1, svenska_folket_oddsx, svenska_folket_odds2,
                        oddset_procent1, oddset_procentx, oddset_procent2,
                        svenska_folket_procent1, svenska_folket_procentx, svenska_folket_procent2,
-                       oddset_rank, people_rank
+                       oddset_rank, people_rank,
+                       tio_tidningar1, tio_tidningarx, tio_tidningar2
                 FROM omgangsmatch
                 WHERE omgang_id = %s
                 ORDER BY matchnummer
@@ -118,7 +119,7 @@ def build_all_historik(min_matches: int = 13):
                 continue
 
             mm = []
-            for (mn, o1, ox, o2, p1, px, p2, op1, opx, op2, sp1, spx, sp2, orank, prank) in rows:
+            for (mn, o1, ox, o2, p1, px, p2, op1, opx, op2, sp1, spx, sp2, orank, prank, t1, tx, t2) in rows:
                 mm.append(
                     {
                         "o_odds": {"1": o1, "X": ox, "2": o2},
@@ -127,6 +128,9 @@ def build_all_historik(min_matches: int = 13):
                         "p_pct": {"1": sp1 or 0.0, "X": spx or 0.0, "2": sp2 or 0.0},
                         "o_rank": int(orank) if orank is not None else None,
                         "p_rank": int(prank) if prank is not None else None,
+                        "t10": {"1": (int(t1) if t1 is not None else None),
+                                 "X": (int(tx) if tx is not None else None),
+                                 "2": (int(t2) if t2 is not None else None)},
                     }
                 )
 
@@ -183,7 +187,9 @@ def build_all_historik(min_matches: int = 13):
                     f"rank{r}_people_even",
                     f"rank{r}_people_wrong",
                 ]
-            cols = base_cols + rank_cols
+            # Rank-bundna tio_tidningar-kolumn (en per rank)
+            t10_cols = [f"rank{r}_oddset_tio_tidningar" for r in range(1, 14)]
+            cols = base_cols + rank_cols + t10_cols
 
             values = []
             # Samla rader som i denna omgång har correct >= 12 för att addera till seen efter commit
@@ -208,11 +214,19 @@ def build_all_historik(min_matches: int = 13):
                 op_r = op_e = op_w = 0
                 pp_r = pp_e = pp_w = 0
                 flags = {name: 0 for name in rank_cols}
+                rank_t10_vals = {name: None for name in t10_cols}
 
                 for pos, ch in enumerate(srad):
                     data = mm[pos]
                     o_sum += float(data["o_pct"].get(ch, 0.0))
                     p_sum += float(data["p_pct"].get(ch, 0.0))
+                    # Sätt rankX_oddset_tio_tidningar för första träff per rank (värdet för valt tecken)
+                    orank = data["o_rank"]
+                    if isinstance(orank, int) and 1 <= orank <= 13:
+                        tval = data["t10"].get(ch)
+                        tcol = f"rank{orank}_oddset_tio_tidningar"
+                        if rank_t10_vals.get(tcol) is None:
+                            rank_t10_vals[tcol] = tval
 
                     ovals = [v for v in data["o_odds"].values() if v is not None]
                     pvals = [v for v in data["p_odds"].values() if v is not None]
@@ -312,6 +326,8 @@ def build_all_historik(min_matches: int = 13):
                 ]
                 for name in rank_cols:
                     row.append(flags[name])
+                for name in t10_cols:
+                    row.append(rank_t10_vals[name])
                 values.append(tuple(row))
                 if correct_val >= 12:
                     ge12_in_omgang.add(kid)

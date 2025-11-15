@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY ranker.py /app/ranker.py
 COPY lightgbm_ranker.py /app/lightgbm_ranker.py
+COPY lightgbm_ranker_bias.py /app/lightgbm_ranker_bias.py
 
 # models volume is expected at /models via docker-compose
 ENV PYTHONUNBUFFERED=1

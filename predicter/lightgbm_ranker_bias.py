@@ -76,7 +76,23 @@ def update_predictions(conn, updates: List[tuple]):
         conn.commit()
 
 
-def predict_for_kommande(omgang_id: Optional[int], batch_size: int) -> None:
+def apply_orc_transform_inplace(df: pd.DataFrame, scheme: str) -> None:
+    col = "oddset_right_count"
+    if col not in df.columns or scheme == "none":
+        return
+    x = pd.to_numeric(df[col], errors="coerce").astype(np.float32)
+    if scheme == "cap10":
+        x = np.minimum(x, 10.0)
+    elif scheme == "sqrt":
+        x = np.sqrt(np.maximum(x, 0.0))
+    elif scheme == "log1p":
+        x = np.log1p(np.maximum(x, 0.0))
+    else:
+        raise ValueError(f"Unknown orc-transform scheme: {scheme}")
+    df[col] = x.astype(np.float32)
+
+
+def predict_for_kommande(omgang_id: Optional[int], batch_size: int, orc_transform: str) -> None:
     feat_cols = load_feature_cols_from_models()
     model_path = "/models/lgbm_ranker.txt"
     booster = lgb.Booster(model_file=model_path)
@@ -93,25 +109,28 @@ def predict_for_kommande(omgang_id: Optional[int], batch_size: int) -> None:
             if not rows:
                 break
             df = pd.DataFrame(rows, columns=colnames)
+            # Apply the same transform as training (row-wise, batch-friendly)
+            apply_orc_transform_inplace(df, orc_transform)
             X = df[feat_cols].apply(pd.to_numeric, errors="coerce").fillna(0).to_numpy(dtype=np.float32)
             preds = booster.predict(X)
             updates = [(int(row_id), float(score)) for row_id, score in zip(df["id"].tolist(), preds.tolist())]
             update_predictions(conn, updates)
             processed += len(updates)
             last_id = int(df["id"].iloc[-1])
-            print(f"Predicter (LightGBM): uppdaterade {processed} rader... (senaste id={last_id})")
+            print(f"Predicter (LightGBM bias): uppdaterade {processed} rader... (senaste id={last_id})")
 
-    print("Predicter (LightGBM): klart.")
+    print("Predicter (LightGBM bias): klart.")
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Predicera rank-score till kommande.rank_predict_1 med tränad LGBMRanker")
+    ap = argparse.ArgumentParser(description="Predicera rank-score (LGBM) med oddset_right_count-transform")
     ap.add_argument("--omgang-id", type=int, default=None, help="Om satt: begränsa till denna omgång")
     ap.add_argument("--batch-size", type=int, default=5000, help="Antal rader per batch vid uppdatering")
+    ap.add_argument("--orc-transform", choices=["none", "cap10", "sqrt", "log1p"], default="cap10", help="Transform av oddset_right_count som matchar träningen")
     args = ap.parse_args()
 
     try:
-        predict_for_kommande(args.omgang_id, args.batch_size)
+        predict_for_kommande(args.omgang_id, args.batch_size, args.orc_transform)
     except Exception as e:
         print(f"Prediction failed: {e}")
         sys.exit(1)
@@ -119,3 +138,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

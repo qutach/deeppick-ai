@@ -97,7 +97,7 @@ def predict_for_kommande(omgang_id: Optional[int], batch_size: int) -> None:
                 break
             df = pd.DataFrame(rows, columns=colnames)
             # Prepare features
-            X = df[feat_cols].fillna(0).astype(np.float32).values
+            X = df[feat_cols].apply(pd.to_numeric, errors="coerce").fillna(0).to_numpy(dtype=np.float32)
             # Predict scores
             preds = model.inplace_predict(X)
             # Build updates list

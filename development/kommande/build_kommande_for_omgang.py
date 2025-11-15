@@ -22,7 +22,8 @@ def fetch_match_data(cur, omgang_id: int):
                svenska_folket_odds1, svenska_folket_oddsx, svenska_folket_odds2,
                oddset_procent1, oddset_procentx, oddset_procent2,
                svenska_folket_procent1, svenska_folket_procentx, svenska_folket_procent2,
-               oddset_rank, people_rank
+               oddset_rank, people_rank,
+               tio_tidningar1, tio_tidningarx, tio_tidningar2
         FROM omgangsmatch
         WHERE omgang_id = %s
         ORDER BY matchnummer
@@ -37,7 +38,8 @@ def fetch_match_data(cur, omgang_id: int):
     people_odds_map = {}
     oddset_rank_map = {}
     people_rank_map = {}
-    for (mn, o1_o, ox_o, o2_o, p1_o, px_o, p2_o, o1, ox, o2, s1, sx, s2, o_rank, p_rank) in rows:
+    tio_map = {}
+    for (mn, o1_o, ox_o, o2_o, p1_o, px_o, p2_o, o1, ox, o2, s1, sx, s2, o_rank, p_rank, t1, tx, t2) in rows:
         pos = int(mn) - 1
         oddset_pct_map[pos] = {
             "1": float(o1) if o1 is not None else 0.0,
@@ -61,6 +63,11 @@ def fetch_match_data(cur, omgang_id: int):
         }
         oddset_rank_map[pos] = int(o_rank) if o_rank is not None else None
         people_rank_map[pos] = int(p_rank) if p_rank is not None else None
+        tio_map[pos] = {
+            "1": int(t1) if t1 is not None else None,
+            "X": int(tx) if tx is not None else None,
+            "2": int(t2) if t2 is not None else None,
+        }
     return (
         oddset_pct_map,
         svenska_pct_map,
@@ -69,6 +76,7 @@ def fetch_match_data(cur, omgang_id: int):
         people_odds_map,
         oddset_rank_map,
         people_rank_map,
+        tio_map,
     )
 
 
@@ -206,6 +214,7 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
             people_odds_map,
             oddset_rank_map,
             people_rank_map,
+            tio_map,
         ) = fetch_match_data(cur, omgang_id)
         if match_count == 0:
             print("Inga matcher hittades för denna omgång — hoppar uppdatering av summor.")
@@ -243,8 +252,10 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                     f"rank{rnk}_people_even",
                     f"rank{rnk}_people_wrong",
                 ]
+            # Förbered kolumnlista för tio_tidningar per oddset-rank (en kolumn per rank)
+            t10_cols = [f"rank{rnk}_oddset_tio_tidningar" for rnk in range(1, 14)]
 
-            updates = []  # tuples matching (id, o_sum, s_sum, o_max, o_min, counts..., group_counts..., points..., flags...)
+            updates = []  # tuples matching (id, o_sum, s_sum, o_max, o_min, counts..., group_counts..., points..., flags..., t10...)
             for cid, rad in rows:
                 s = sanitize_rad(rad)
                 odd_sum = 0.0
@@ -263,6 +274,7 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                 op_right = op_even = op_wrong = 0
                 pp_right = pp_even = pp_wrong = 0
                 flags = {col: 0 for col in flag_cols}
+                t10_vals = {col: None for col in t10_cols}
                 # Summera över antalet matcher vi har data för
                 for pos in range(match_count):
                     if pos < len(s):
@@ -274,6 +286,13 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                         p_odds = people_odds_map.get(pos, {})
                         o_choice = o_odds.get(ch)
                         p_choice = p_odds.get(ch)
+                        # Tio tidningar per oddset-rank och vald tecken
+                        o_rank = oddset_rank_map.get(pos)
+                        if isinstance(o_rank, int) and 1 <= o_rank <= 13:
+                            tval = tio_map.get(pos, {}).get(ch)
+                            tcol = f"rank{o_rank}_oddset_tio_tidningar"
+                            if t10_vals.get(tcol) is None:
+                                t10_vals[tcol] = tval
                         # Beräkna min/max per källa, hantera None genom att ignorera
                         o_vals_all = [v for v in o_odds.values() if v is not None]
                         p_vals_all = [v for v in p_odds.values() if v is not None]
@@ -289,7 +308,6 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                             else:
                                 o_cls = 'even'
                                 oc_even += 1
-                            o_rank = oddset_rank_map.get(pos)
                             if isinstance(o_rank, int) and 1 <= o_rank <= 13:
                                 key = f"rank{o_rank}_oddset_{o_cls}"
                                 flags[key] = 1
@@ -349,7 +367,8 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                                 og1_r, og1_e, og1_w, og2_r, og2_e, og2_w, og3_r, og3_e, og3_w,
                                 pg1_r, pg1_e, pg1_w, pg2_r, pg2_e, pg2_w, pg3_r, pg3_e, pg3_w,
                                 op_right, op_even, op_wrong, pp_right, pp_even, pp_wrong,
-                                *[flags[c] for c in flag_cols]))
+                                *[flags[c] for c in flag_cols],
+                                *[t10_vals[c] for c in t10_cols]))
                 last_id = cid
 
             # Bulk-uppdatera via VALUES‑tabell med alla rank‑flaggor
@@ -359,7 +378,7 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                 "og1_r", "og1_e", "og1_w", "og2_r", "og2_e", "og2_w", "og3_r", "og3_e", "og3_w",
                 "pg1_r", "pg1_e", "pg1_w", "pg2_r", "pg2_e", "pg2_w", "pg3_r", "pg3_e", "pg3_w",
                 "op_r", "op_e", "op_w", "pp_r", "pp_e", "pp_w"
-            ] + flag_cols
+            ] + flag_cols + t10_cols
             values_cols_sql = ", ".join(values_cols)
             set_cols_sql = ", ".join([
                 "oddset_radsumma = v.o",
@@ -396,7 +415,19 @@ def update_kommande_sums(conn, omgang_id: int, batch_size: int):
                 "people_right_points = v.pp_r",
                 "people_even_points = v.pp_e",
                 "people_wrong_points = v.pp_w",
-            ] + [f"{col} = v.{col}" for col in flag_cols])
+            ] +
+            # Rankflaggor (0/1) kan kopieras direkt
+            [f"{col} = v.{col}" for col in flag_cols] +
+            # Tio-tidningar-kolumner kan ibland komma in som text 'null' från källdata.
+            # Normalisera: behandla 'null'/'NULL'/tom sträng som NULL och casta i övrigt till INTEGER.
+            [
+                (
+                    f"{col} = CASE WHEN v.{col} IS NULL THEN NULL "
+                    f"WHEN lower(v.{col}::text) = 'null' OR v.{col}::text = '' THEN NULL "
+                    f"ELSE (v.{col}::text)::int END"
+                )
+                for col in t10_cols
+            ])
             update_sql = f"""
                 UPDATE kommande AS c
                 SET {set_cols_sql}
@@ -468,6 +499,19 @@ def update_kommande_sums_fast(conn, omgang_id: int):
                 rank3_people_right = sums.rank3_people_right,
                 rank3_people_even = sums.rank3_people_even,
                 rank3_people_wrong = sums.rank3_people_wrong,
+                rank1_oddset_tio_tidningar = sums.rank1_oddset_tio_tidningar,
+                rank2_oddset_tio_tidningar = sums.rank2_oddset_tio_tidningar,
+                rank3_oddset_tio_tidningar = sums.rank3_oddset_tio_tidningar,
+                rank4_oddset_tio_tidningar = sums.rank4_oddset_tio_tidningar,
+                rank5_oddset_tio_tidningar = sums.rank5_oddset_tio_tidningar,
+                rank6_oddset_tio_tidningar = sums.rank6_oddset_tio_tidningar,
+                rank7_oddset_tio_tidningar = sums.rank7_oddset_tio_tidningar,
+                rank8_oddset_tio_tidningar = sums.rank8_oddset_tio_tidningar,
+                rank9_oddset_tio_tidningar = sums.rank9_oddset_tio_tidningar,
+                rank10_oddset_tio_tidningar = sums.rank10_oddset_tio_tidningar,
+                rank11_oddset_tio_tidningar = sums.rank11_oddset_tio_tidningar,
+                rank12_oddset_tio_tidningar = sums.rank12_oddset_tio_tidningar,
+                rank13_oddset_tio_tidningar = sums.rank13_oddset_tio_tidningar,
                 rank4_oddset_right = sums.rank4_oddset_right,
                 rank4_oddset_even = sums.rank4_oddset_even,
                 rank4_oddset_wrong = sums.rank4_oddset_wrong,
@@ -535,7 +579,8 @@ def update_kommande_sums_fast(conn, omgang_id: int):
                            svenska_folket_odds1, svenska_folket_oddsx, svenska_folket_odds2,
                            oddset_procent1, oddset_procentx, oddset_procent2,
                            svenska_folket_procent1, svenska_folket_procentx, svenska_folket_procent2,
-                           oddset_rank, people_rank
+                           oddset_rank, people_rank,
+                           tio_tidningar1, tio_tidningarx, tio_tidningar2
                     FROM omgangsmatch
                     WHERE omgang_id = %s
                 )
@@ -657,7 +702,47 @@ def update_kommande_sums_fast(conn, omgang_id: int):
                        SUM(CASE WHEN mm.oddset_rank = 13 AND cls_o = 'W' THEN 1 ELSE 0 END) AS rank13_oddset_wrong,
                        SUM(CASE WHEN mm.people_rank = 13 AND cls_p = 'R' THEN 1 ELSE 0 END) AS rank13_people_right,
                        SUM(CASE WHEN mm.people_rank = 13 AND cls_p = 'E' THEN 1 ELSE 0 END) AS rank13_people_even,
-                       SUM(CASE WHEN mm.people_rank = 13 AND cls_p = 'W' THEN 1 ELSE 0 END) AS rank13_people_wrong
+                       SUM(CASE WHEN mm.people_rank = 13 AND cls_p = 'W' THEN 1 ELSE 0 END) AS rank13_people_wrong,
+                       -- Tio tidningar per oddset-rank och tecken
+                       SUM(CASE WHEN mm.oddset_rank = 1 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank1_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 1 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank1_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 1 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank1_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 2 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank2_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 2 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank2_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 2 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank2_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 3 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank3_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 3 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank3_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 3 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank3_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 4 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank4_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 4 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank4_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 4 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank4_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 5 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank5_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 5 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank5_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 5 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank5_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 6 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank6_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 6 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank6_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 6 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank6_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 7 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank7_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 7 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank7_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 7 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank7_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 8 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank8_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 8 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank8_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 8 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank8_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 9 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank9_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 9 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank9_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 9 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank9_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 10 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank10_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 10 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank10_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 10 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank10_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 11 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank11_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 11 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank11_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 11 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank11_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 12 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank12_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 12 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank12_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 12 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank12_oddset_tio_tidningar2,
+                       SUM(CASE WHEN mm.oddset_rank = 13 AND ch = '1' THEN mm.tio_tidningar1 ELSE NULL END) AS rank13_oddset_tio_tidningar1,
+                       SUM(CASE WHEN mm.oddset_rank = 13 AND ch = 'X' THEN mm.tio_tidningarx ELSE NULL END) AS rank13_oddset_tio_tidningarx,
+                       SUM(CASE WHEN mm.oddset_rank = 13 AND ch = '2' THEN mm.tio_tidningar2 ELSE NULL END) AS rank13_oddset_tio_tidningar2
                 FROM kommande c2
                 JOIN kombinationer k ON k.kombinations_id = c2.rad
                 CROSS JOIN LATERAL (

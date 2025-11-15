@@ -219,6 +219,25 @@ def skapa_tabell_kommande(cur):
         ADD COLUMN IF NOT EXISTS unik_flagga BOOLEAN
         """
     )
+    # Tio Tidningar per oddset-rank (en kolumn per rank)
+    cur.execute(
+        """
+        ALTER TABLE kommande
+        ADD COLUMN IF NOT EXISTS rank1_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank2_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank3_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank4_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank5_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank6_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank7_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank8_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank9_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank10_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank11_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank12_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank13_oddset_tio_tidningar INTEGER
+        """
+    )
     cur.execute(
         """
         ALTER TABLE kommande
@@ -496,6 +515,25 @@ def skapa_tabell_historik(cur):
         ADD COLUMN IF NOT EXISTS rank13_people_right INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS rank13_people_even INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS rank13_people_wrong INTEGER DEFAULT 0
+        """
+    )
+    # Tio Tidningar per oddset-rank (en kolumn per rank)
+    cur.execute(
+        """
+        ALTER TABLE historik
+        ADD COLUMN IF NOT EXISTS rank1_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank2_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank3_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank4_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank5_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank6_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank7_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank8_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank9_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank10_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank11_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank12_oddset_tio_tidningar INTEGER,
+        ADD COLUMN IF NOT EXISTS rank13_oddset_tio_tidningar INTEGER
         """
     )
     # Uppgradera unik constraint: ta bort ev. gammal UNIQUE (omgang_id) och säkerställ unik (omgang_id, rad)
