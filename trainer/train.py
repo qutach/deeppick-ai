@@ -49,6 +49,9 @@ def build_feature_cols() -> List[str]:
             f"rank{r}_oddset_even",
             f"rank{r}_oddset_wrong",
         ])
+    # Add per-rank Tio Tidningar feature (single column per rank)
+    for r in range(1, 14):
+        cols.append(f"rank{r}_oddset_tio_tidningar")
     return cols
 
 
@@ -70,7 +73,7 @@ def load_training_data(omgang_id_min: int | None = None, omgang_id_max: int | No
     with get_conn() as conn:
         df = pd.read_sql_query(sql, conn, params=tuple(params) if params else None)
     # Ensure ints/floats and fill NaNs with 0 for flags
-    df[feat_cols] = df[feat_cols].fillna(0).astype(np.float32)
+    df[feat_cols] = df[feat_cols].apply(pd.to_numeric, errors="coerce").fillna(0).astype(np.float32)
     df["correct"] = df["correct"].astype(np.int32)
 
     # Build groups per omgang_id and filter groups with >1 rows (ranker needs comparisons)
